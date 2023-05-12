@@ -34,9 +34,25 @@ export class ProductsService {
     }
   }
 
-  findAll() {
+  async findAll() {
     try {
-      return this.productRepository.find({});
+      return await this.productRepository.find({});
+    } catch (error) {
+      this.handleDBExceptions(error);
+    }
+  }
+
+  async findAllByCategory(category: string) {
+    try {
+      const products = await this.productRepository.find({
+        where: { category },
+      });
+      if (products.length === 0) {
+        throw new NotFoundException(
+          `Products with category '${category}' not found.`,
+        );
+      }
+      return products;
     } catch (error) {
       this.handleDBExceptions(error);
     }
