@@ -1,12 +1,20 @@
-import { Injectable, InternalServerErrorException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  InternalServerErrorException,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Product } from './entities/product.entity';
 import { Repository } from 'typeorm';
+import { validate as isUUID } from 'uuid';
 
 @Injectable()
 export class ProductsService {
+  private readonly logger = new Logger('ProductsService');
   constructor(
     @InjectRepository(Product)
     private readonly productRepository: Repository<Product>,
@@ -17,7 +25,6 @@ export class ProductsService {
       const product = this.productRepository.create({
         ...createProductDto,
       });
-      // console.log('Product entity:', product);
       await this.productRepository.save(product);
 
       return product;
@@ -28,11 +35,32 @@ export class ProductsService {
   }
 
   findAll() {
-    return `This action returns all products`;
+    try {
+      return this.productRepository.find({});
+    } catch (error) {
+      this.handleDBExceptions(error);
+    }
   }
 
-  findOne(id: number) {
-    return `This action returns a #${id} product`;
+  async findOne(term: string) {
+    try {
+      let product: Product;
+      const queryBuilder = this.productRepository.createQueryBuilder();
+      product = isUUID(term)
+        ? await this.productRepository.findOneBy({ id: term })
+        : await queryBuilder
+            .where(`UPPER(name) =:name or slug =:slug`, {
+              name: term.toUpperCase(),
+              slug: term.toLowerCase(),
+            })
+            .getOne();
+      if (!product) {
+        throw new NotFoundException(`Product with ${term} not found`);
+      }
+      return product;
+    } catch (error) {
+      this.handleDBExceptions(error);
+    }
   }
 
   update(id: number, updateProductDto: UpdateProductDto) {
@@ -53,6 +81,13 @@ export class ProductsService {
   }
 
   private handleDBExceptions(error: any) {
-    throw new InternalServerErrorException(error || 'Some error occur');
+    if (error.code === '23505') throw new BadRequestException(error.detail);
+    if (error.response.statusCode === 404)
+      throw new NotFoundException(error.response.message);
+    this.logger.error(error);
+
+    throw new InternalServerErrorException(
+      'Unexpected error, check server logs',
+    );
   }
 }

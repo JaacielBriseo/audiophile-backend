@@ -7,7 +7,9 @@ export class Product {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column('text')
+  @Column('text', {
+    unique: true,
+  })
   slug: string;
 
   @Column('text', {
