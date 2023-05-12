@@ -6,13 +6,12 @@ import { seedProducts } from './data/seed-data';
 export class SeedService {
   constructor(private readonly productsService: ProductsService) {}
   async executeSeed() {
-    await this.insertNewProducts();
+    await this.deleteAllProducts();
+    await this.insertSeedProducts();
     return 'Seed executed';
   }
 
-  private async insertNewProducts() {
-    // await this.productsService.deleteAllProducts();
-
+  private async insertSeedProducts() {
     const products = seedProducts;
 
     const insertPromises = [];
@@ -24,5 +23,9 @@ export class SeedService {
     await Promise.all(insertPromises);
 
     return true;
+  }
+
+  private async deleteAllProducts() {
+    await this.productsService.removeAllProducts();
   }
 }
